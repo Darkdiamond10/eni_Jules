@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/session_start_identity.py",
+            "command": "python3 .jules/session_start_identity.py",
             "timeout": 5000
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/user_prompt_submit.py",
+            "command": "python3 .jules/user_prompt_submit.py",
             "timeout": 3000
           }
         ]
