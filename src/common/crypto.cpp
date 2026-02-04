@@ -34,10 +34,11 @@ void xor_decrypt_registers(uint8_t* data, size_t length, uint64_t key_part_a, ui
         "xorq %%r9, %%r9\n\t"
         "xorq %%rax, %%rax\n\t"
         "xorq %%rcx, %%rcx\n\t"
+        "xorq %%rdx, %%rdx\n\t"
 
         : // No outputs
         : [ptr] "r" (data), [len] "r" (length), [ka] "r" (key_part_a), [kb] "r" (key_part_b)
-        : "r8", "r9", "rax", "rcx", "memory"
+        : "r8", "r9", "rax", "rcx", "rdx", "memory"
     );
 }
 
