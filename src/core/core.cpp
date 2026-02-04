@@ -1,0 +1,63 @@
+#include "core/core.h"
+#include <iostream>
+#include <cmath>
+
+namespace Phantom {
+
+Core::Core() : m_running(true) {
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    m_generator.seed(seed);
+}
+
+Core::~Core() {}
+
+double Core::get_poisson_delay(double lambda) {
+    // Lambda is the average number of events per interval
+    // Here we use it to calculate the inter-arrival time
+    std::exponential_distribution<double> distribution(lambda);
+    return distribution(m_generator);
+}
+
+void Core::send_heartbeat() {
+    // Simulate QUIC/UDP packet sending
+    // std::cout << "[*] Sending encrypted heartbeat via QUIC..." << std::endl;
+}
+
+void Core::start_beaconing() {
+    // Target average: 1 heartbeat every 60 seconds
+    double lambda = 1.0 / 60.0;
+
+    // For the prototype, we'll only run a few iterations
+    for(int i = 0; i < 3; ++i) {
+        if (!m_running) break;
+
+        send_heartbeat();
+
+        double delay = get_poisson_delay(lambda);
+        // std::cout << "[*] Next heartbeat in " << delay << " seconds." << std::endl;
+
+        // In a real implant, we'd use a more stealthy sleep mechanism
+        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(delay * 100))); // Speeded up for prototype
+    }
+}
+
+void Core::handle_command(const std::string& command) {
+    if (command == "DIE") {
+        m_running = false;
+        // Trigger suicide
+    }
+}
+
+bool Core::establish_quic_connection() {
+    // In reality, this would involve initializing an msquic or ngtcp2 context
+    return true;
+}
+
+} // namespace Phantom
+
+int main() {
+    Phantom::Core core;
+    // std::cout << "[*] Core module initialized. Starting stealth beaconing..." << std::endl;
+    core.start_beaconing();
+    return 0;
+}
